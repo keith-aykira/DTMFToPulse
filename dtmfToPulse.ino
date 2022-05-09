@@ -74,8 +74,8 @@ void doStates() {
   switch(state) {
     case 0:
       if(fifoIn!=fifoOut) {  // something on the queue, send it out
-        numberP=fifo[fifoIn];
-        fifoIn=(fifoIn+1)%FIFO_LEN;
+        numberP=fifo[fifoOut];
+        fifoOut=(fifoOut+1)%FIFO_LEN;
         state=1;
       }
       break;
@@ -170,8 +170,8 @@ void loop() {
   long diff_times = (now-last_hash_time);
   if ( (diff_times > (hangup_timeout)) & (diff_times != 0) )
   {
-    fifo[fifoOut]=0x0c;
-    fifoOut=(fifoOut+1)%FIFO_LEN;
+    fifo[fifoIn]=0x0c;
+    fifoIn=(fifoIn+1)%FIFO_LEN;
     Serial.println("you took too long!!!");
   }
 
