@@ -171,7 +171,7 @@ void loop() {
   if ( (diff_times > (hangup_timeout)) & (diff_times != 0) )
   {
     fifo[fifoOut]=0x0c;
-    fifoOut+(fifoOut+1)%FIFO_LEN;
+    fifoOut=(fifoOut+1)%FIFO_LEN;
     Serial.println("you took too long!!!");
   }
 
