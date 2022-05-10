@@ -23,7 +23,7 @@ byte fifo[FIFO_LEN];  // basic circular buffer
 byte fifoIn=0,fifoOut=0;  // head and tail pointers
 byte state=0;      // state machine current state
 byte numberP=0;    // number being pulsed
-volatile unsigned short timer0=0,timer1=0;   // the two timers
+volatile unsigned short timer0=0,timer1=0;   // the two timers that countdown
 
 
 
@@ -72,9 +72,9 @@ void setup() {
 
 
 void doStates() {
-  switch(state) {
-    case 0:
-      if(fifoIn!=fifoOut) {  // something on the queue, send it out
+  switch(state) {   // state matches to each case..
+    case 0:  // start state
+      if(fifoIn!=fifoOut) {  // something on the queue, grab it and move to state 1
         numberP=fifo[fifoOut];
         fifoOut=(fifoOut+1)%FIFO_LEN;
         state=1;
@@ -83,9 +83,9 @@ void doStates() {
 
     case 1:
       if(numberP==0x0c) {
-        state=100; // hangup
+        state=100; // hangup, move to state 100
       } else {
-        state=2; // regular digit
+        state=2; // regular digit, move to state 2
       }
       break;
 
@@ -97,7 +97,7 @@ void doStates() {
     }
 
     case 3: {
-      if(timer0==0) {
+      if(timer0==0) {  // only do when timer stopped
         digitalWrite(output_pin, LOW); // set low for pulse time and time to state 4
         timer0=pulse_length_break;
         state=4;
@@ -164,11 +164,11 @@ void loop() {
   ticker.update();  // tick tick goes the ticker...
   
   if( doDTMFread && (timer1==0)) { // read the DTMF
-    read_dtmf_inputs();
     doDTMFread=false;   //done handling interrupted flag
+    read_dtmf_inputs();
   }
   
-  doStates();   // magical state machine
+  doStates();   // the magical state machine
 
   long now = millis();
   long diff_times = (now-last_hash_time);
