@@ -19,11 +19,11 @@ long last_hash_time = 0;
 
 #define FIFO_LEN 20
 volatile boolean doDTMFread=false;  // flag to main routine to do DTMF read
-byte fifo[FIFO_LEN];
-byte fifoIn=0,fifoOut=0;
-byte state=0;
-byte numberP=0;
-volatile unsigned short timer0=0,timer1=0;
+byte fifo[FIFO_LEN];  // basic circular buffer
+byte fifoIn=0,fifoOut=0;  // head and tail pointers
+byte state=0;      // state machine current state
+byte numberP=0;    // number being pulsed
+volatile unsigned short timer0=0,timer1=0;   // the two timers
 
 
 
@@ -41,16 +41,17 @@ volatile unsigned short timer0=0,timer1=0;
 void read_dtmf_inputs_intr() {
   // keep very short
   doDTMFread=true;
-  timer1=250;
+  timer1=250;  // settle down delay before reading pins
 }
 
-void tickerKick() {
+
+void tickerKick() {  // the ticker routine
   if(timer0>0) timer0--;  // countdown timer 0
   if(timer1>0) timer1--;  // countdown timer 1
 }
 
-// ticker routine goes off every 1ms
 
+// ticker routine goes off every 1ms
 Ticker ticker(tickerKick,1);
 
 
@@ -84,12 +85,12 @@ void doStates() {
       if(numberP==0x0c) {
         state=100; // hangup
       } else {
-        state=2;
+        state=2; // regular digit
       }
       break;
 
     case 2: {
-      digitalWrite(output_pin, HIGH);
+      digitalWrite(output_pin, HIGH);  //set high for pulse time and move to state 3
       timer0=pulse_length_make;
       state=3;
       break;
@@ -97,7 +98,7 @@ void doStates() {
 
     case 3: {
       if(timer0==0) {
-        digitalWrite(output_pin, LOW);
+        digitalWrite(output_pin, LOW); // set low for pulse time and time to state 4
         timer0=pulse_length_break;
         state=4;
       }
@@ -105,10 +106,10 @@ void doStates() {
     }
 
     case 4: {
-      if(timer0==0) {
-        numberP--;
-        if(numberP==0) {
-          timer0=interdigit_gap;
+      if(timer0==0) {     // timer finished
+        numberP--;        // done one pulse train
+        if(numberP==0) {  // none left
+          timer0=interdigit_gap; // time the gap and move to state 5
           state=5;
           break;
         }
@@ -119,13 +120,13 @@ void doStates() {
 
     case 5: {
       if(timer0==0) {
-        state=0;  // next digit
+        state=0;  // back to the start for next digit
       }
     }
     break;
 
     case 100: {  // hang up
-      digitalWrite(output_pin, HIGH);
+      digitalWrite(output_pin, HIGH);  // set high for hangup delay
       timer0=pulse_hangup_delay;
       state=101;
     }
@@ -133,7 +134,7 @@ void doStates() {
 
     case 101: {
       if(timer0==0) {
-        digitalWrite(output_pin, LOW);
+        digitalWrite(output_pin, LOW);  // set low for 2* hangup delay
         timer0=pulse_hangup_delay*2;
         state=102;
       }
@@ -142,14 +143,15 @@ void doStates() {
 
     case 102: {
       digitalWrite(output_pin, HIGH);
-      timer0=pulse_hangup_delay*2;
+      timer0=pulse_hangup_delay*2;  // set high for 2* hangup
       state=103;
+      break;
     }
 
     case 103: {
       if(timer0==0) {
-        digitalWrite(output_pin, LOW);
-        state=0;
+        digitalWrite(output_pin, LOW);  // I set this low, seems weird to leave high..
+        state=0; // back to the start for next digit
       }
     }
     break;
@@ -159,18 +161,20 @@ void doStates() {
 
 
 void loop() {
-  ticker.update();
-  if( doDTMFread && (timer1==0)) { // read!
+  ticker.update();  // tick tick goes the ticker...
+  
+  if( doDTMFread && (timer1==0)) { // read the DTMF
     read_dtmf_inputs();
-    doDTMFread=false; //done handling interrupted flag
+    doDTMFread=false;   //done handling interrupted flag
   }
-  doStates();
+  
+  doStates();   // magical state machine
 
   long now = millis();
   long diff_times = (now-last_hash_time);
   if ( (diff_times > (hangup_timeout)) & (diff_times != 0) )
   {
-    fifo[fifoIn]=0x0c;
+    fifo[fifoIn]=0x0c;  // throw a hangup on the queue
     fifoIn=(fifoIn+1)%FIFO_LEN;
     Serial.println("you took too long!!!");
   }
