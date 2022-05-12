@@ -6,6 +6,7 @@
 
 // 1 pulse = 50ms on, 50ms off
 
+// https://wokwi.com/projects/331414878730322516
 
 ///////////
 //
@@ -33,7 +34,7 @@
 //     less than this number of digits toned and if you timeout you get hung up
 //     set to 0 to turn off
 
-#define MIN_DIGITS 4
+#define MIN_DIGITS 200
 
 
 // Initial High Control:
@@ -48,7 +49,7 @@
 
 //   Inactive Hangup Control:
 //     comment out line below if you ONLY want a '#' to trigger hangups and not timeouts or too few digits 
-#define INACTIVE_HANGUP
+// #define INACTIVE_HANGUP
 
 
 //   High Low Hangup:
@@ -69,13 +70,21 @@
 #ifdef LCD_DISPLAY
 // https://github.com/johnrickman/LiquidCrystal_I2C
 // under code grab the zip and install
+//
+//   LCD        Nano
+//   ===        ====
+//   GND         GND
+//   Vcc          5v
+//   SDA          A4
+//   SCL          A5
+
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 #endif
 
 //   Individual Timing Controls
-int pulse_length_make = 33*SPEED;
-int pulse_length_break = 66*SPEED;
+int pulse_length_make = 50*SPEED;
+int pulse_length_break = 50*SPEED;
 int pulse_hangup_delay = 1000*SPEED;
 int interdigit_gap = 300*SPEED;
 int initial_gap = 300*SPEED;
@@ -88,7 +97,7 @@ long hangup_timeout = 3*SPEED;
 #endif
 
 // long idle timeout after which it will set HIGH if in state 0
-long idle_timeout = 10*60;   // in seconds
+long idle_timeout = 1*60;   // in seconds
 
 long last_digit_time = 0;
 
@@ -246,7 +255,7 @@ void doStates() {
       if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
         if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
           timerSec0=0;  // no dangling hangups pending
-          timerSec2=0;  // no dangling idle timeouts pending
+          timerSec2=idle_timeout;  // idle timeout reset
           setStatus("New Tones     ");
 #ifdef INITIAL_HIGH
           digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
@@ -424,7 +433,8 @@ void loop() {
   }
 
   if(timerSec2Fired) {
-    if(state==0) digitalWrite(output_pin, HIGH);  // idled out, set HIGH
+   
+   if((state==0) || (state==2)) digitalWrite(output_pin, HIGH);  // idled out, set HIGH
     timerSec2Fired=false;
   }
 }
