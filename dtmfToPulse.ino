@@ -11,6 +11,9 @@
 //
 // some lovely tweakables.. Hint: change one thing at a time
 
+// uncomment for debug settings
+// #define DEBUG
+
 
 #define SPEED 1
 //  vvv uncomment to go a factor of 4 slower
@@ -58,10 +61,14 @@ int pulse_hangup_delay = 1000*SPEED;
 int interdigit_gap = 300*SPEED;
 int initial_gap = 300*SPEED;
 
-//int hangup_timeout = 60*1000*15;
-int hangup_timeout = 3000*SPEED;
+//   how long to be inactive before a hangup gets sent and it resets (in seconds)
+#ifndef DEBUG
+long hangup_timeout = 10*SPEED;
+#else
+long hangup_timeout = 3*SPEED;
+#endif
 
-long last_hash_time = 0;
+
 long last_digit_time = 0;
 
 
@@ -71,7 +78,9 @@ byte fifo[FIFO_LEN];  // basic circular buffer
 byte fifoIn=0,fifoOut=0;  // head and tail pointers
 byte state=0, old_state=0;      // state machine current state
 byte numberP=0;    // number being pulsed
-volatile unsigned short timer0=0,timer1=0;   // the two timers that countdown
+volatile unsigned short timer0=0,timer1=0,timerSec0=0;   // 3 timers that countdown, last one in seconds
+volatile long secCount=0;
+boolean timerSec0Fired=false;
 byte digitCount=0;  // count the digits typed, less than MIN_DIGITS and it does a hangup
 
 
@@ -96,6 +105,14 @@ void read_dtmf_inputs_intr() {
 void tickerKick() {  // the ticker routine
   if(timer0>0) timer0--;  // countdown timer 0
   if(timer1>0) timer1--;  // countdown timer 1
+  secCount++;
+  if(secCount>=1000) {
+    secCount=0;
+    if(timerSec0>0) {
+      timerSec0--;
+      if(timerSec0==0) timerSec0Fired=true;   // it only gets set once..
+    }
+  }
 }
 
 
@@ -129,7 +146,7 @@ void doStates() {
     case 0:  // start state
       if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
         if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
-          last_hash_time=0;  // no dangling hangups pending
+          timerSec0=0;  // no dangling hangups pending
 #ifdef INITIAL_HIGH
           digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
           timer0=initial_gap;
@@ -198,7 +215,7 @@ void doStates() {
       if(timer0==0) {
         state=2;  // back to the start for next digit
 #ifdef INACTIVE_HANGUP
-        last_hash_time=millis();   // hangup if inactive
+        timerSec0=hangup_timeout;  // hangup if inactive
 #endif
       }
     }
@@ -262,22 +279,19 @@ void loop() {
     old_state=state;
   }
 
-  if( last_hash_time>0) {
-    long now = millis();
-    long diff_times = (now-last_hash_time);
-    if ( (diff_times > (hangup_timeout)) && (diff_times != 0) && (state==2)) {
-      if(digitCount<MIN_DIGITS) {
-        fifo[fifoIn]=0x0c;  // throw a hangup on the queue
-        fifoIn=(fifoIn+1)%FIFO_LEN;
-        last_hash_time=0;  // there is only one hangup
-        Serial.println("Slow and too few digits => hangup");
-      }
-      else {
-        state=0;  // all good, we are done 
-        Serial.println("Assume got connected, wait for more...");
-      }
-      digitCount=0;   // reset count
+
+  if ( timerSec0Fired && (state==2)) {
+    timerSec0Fired=false;
+    if(digitCount<MIN_DIGITS) {
+      fifo[fifoIn]=0x0c;  // throw a hangup on the queue
+       fifoIn=(fifoIn+1)%FIFO_LEN;
+      Serial.println("Slow and too few digits => hangup");
     }
+    else {
+      state=0;  // all good, we are done 
+      Serial.println("Assume got connected, wait for more...");
+    }
+    digitCount=0;   // reset count
   }
 }
 
@@ -326,7 +340,7 @@ void read_dtmf_inputs()
     break;
     case 0x0C:
     Serial.println("Button Pressed =  #");
-    last_hash_time = millis();
+    timerSec0=hangup_timeout;
     break;    
   }
 
