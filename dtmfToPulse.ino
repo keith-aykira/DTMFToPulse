@@ -6,6 +6,8 @@
 
 // 1 pulse = 50ms on, 50ms off
 
+// wiring at https://wokwi.com/projects/331414878730322516
+
 
 ///////////
 //
@@ -14,6 +16,8 @@
 // uncomment for debug settings
 // #define DEBUG
 
+//    uncomment if i2c LCD display present   (GND, VCC, SDA to A4, SCL to A5)
+#define LCD_DISPLAY
 
 #define SPEED 1
 //  vvv uncomment to go a factor of 4 slower
@@ -54,6 +58,13 @@
 // #define END_LOW_HANGUP
 
 
+#ifdef LCD_DISPLAY
+// https://github.com/johnrickman/LiquidCrystal_I2C
+// under code grab the zip and install
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+#endif
+
 //   Individual Timing Controls
 int pulse_length_make = 33*SPEED;
 int pulse_length_break = 66*SPEED;
@@ -78,9 +89,9 @@ byte fifo[FIFO_LEN];  // basic circular buffer
 byte fifoIn=0,fifoOut=0;  // head and tail pointers
 byte state=0, old_state=0;      // state machine current state
 byte numberP=0;    // number being pulsed
-volatile unsigned short timer0=0,timer1=0,timerSec0=0;   // 3 timers that countdown, last one in seconds
+volatile unsigned short timer0=0,timer1=0,timerSec0=0,timerSec1=0;   // 3 timers that countdown, last 2 in seconds
 volatile long secCount=0;
-boolean timerSec0Fired=false;
+boolean timerSec0Fired=false,timerSec1Fired=false;
 byte digitCount=0;  // count the digits typed, less than MIN_DIGITS and it does a hangup
 
 
@@ -112,12 +123,44 @@ void tickerKick() {  // the ticker routine
       timerSec0--;
       if(timerSec0==0) timerSec0Fired=true;   // it only gets set once..
     }
+    if(timerSec1>0) {
+      timerSec1--;
+      if(timerSec1==0) timerSec1Fired=true;   // it only gets set once..
+    }
   }
 }
 
 
 // ticker routine goes off every 1ms
 Ticker ticker(tickerKick,1);
+
+void backLightOn() {
+  if(timerSec1==0) {
+    lcd.backlight();
+    timerSec1=60;
+  }
+}
+
+
+void setStatus(char *s) {
+#ifdef LCD_DISPLAY
+  lcd.setCursor(0,0);
+  lcd.print(s);
+  backLightOn();
+#endif
+}
+
+
+void setState() {
+#ifdef LCD_DISPLAY
+  char st[4];
+  sprintf(st,"%03d",state);
+  lcd.setCursor(13,1);
+  lcd.print(st);
+#endif
+}
+
+
 
 
 void setup() {
@@ -138,6 +181,38 @@ void setup() {
 #ifndef END_LOW_HANGUP
   digitalWrite(output_pin, HIGH);
 #endif 
+
+#ifdef LCD_DISPLAY
+  lcd.init();                      // initialize the lcd
+#endif 
+  // Print a message to the LCD.
+  setStatus("GDay Mate!");
+
+}
+
+char mapFifo(byte c) {
+  if(c==0xc) return '#';
+  if(c<10) return (char)(48+c);
+  return '0';
+}
+
+
+void displayQueue() {
+  int i=fifoOut,p=0;
+  while((i!=fifoIn) && (p<8)) {
+    char c[2];
+    c[0]=mapFifo(fifo[i]);
+    lcd.setCursor(p,1);
+    c[1]=0;
+    lcd.print(c);
+    p++;
+    i=(i+1)%FIFO_LEN;
+  }
+  while(p<8) {
+    lcd.setCursor(p,1);
+    lcd.print(" ");
+    p++;
+  }
 }
 
 
@@ -147,6 +222,7 @@ void doStates() {
       if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
         if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
           timerSec0=0;  // no dangling hangups pending
+          setStatus("New Tones     ");
 #ifdef INITIAL_HIGH
           digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
           timer0=initial_gap;
@@ -167,16 +243,23 @@ void doStates() {
       break;
 
     case 2: 
-       if((timer0==0) && (fifoIn!=fifoOut)) {  // something on the queue, grab it and move to state 3
-        numberP=fifo[fifoOut];
-        fifoOut=(fifoOut+1)%FIFO_LEN;
-        state=3;
+       if(timer0==0) {
+        if(fifoIn!=fifoOut) {  // something on the queue, grab it and move to state 3
+          numberP=fifo[fifoOut];
+          fifoOut=(fifoOut+1)%FIFO_LEN;
+          displayQueue();
+          char temp[10];
+          sprintf(temp,"Dial %c       ",mapFifo(numberP));
+          setStatus(temp);
+          state=3;
+        }
       }
       break;  // we wait here for more digits..  hangup timeout applies here only
 
     case 3:
       if(numberP==0x0c) {
         state=100; // hangup, move to state 100
+        setStatus("Hang Up       ");
       } else {
         state=4; // regular digit, move to state 4
       }
@@ -214,6 +297,7 @@ void doStates() {
     case 7: {
       if(timer0==0) {
         state=2;  // back to the start for next digit
+        if(fifoIn==fifoOut) setStatus("Done        ");
 #ifdef INACTIVE_HANGUP
         timerSec0=hangup_timeout;  // hangup if inactive
 #endif
@@ -244,6 +328,7 @@ void doStates() {
       state=103;
 #else
       state=0;
+      setStatus("Waiting  ");
 #endif
       break;
     }
@@ -252,6 +337,7 @@ void doStates() {
       if(timer0==0) {
         digitalWrite(output_pin, LOW);  // I set this low, seems weird to leave high..
         state=0; // back to the start for next digit
+        setStatus("Waiting  ");
       }
     }
     break;
@@ -276,6 +362,7 @@ void loop() {
     Serial.print(old_state);
     Serial.print(" -> ");
     Serial.println(state);
+    setState();
     old_state=state;
   }
 
@@ -290,8 +377,16 @@ void loop() {
     else {
       state=0;  // all good, we are done 
       Serial.println("Assume got connected, wait for more...");
+      setStatus("Waiting  ");
     }
     digitCount=0;   // reset count
+  }
+
+  if(timerSec1Fired) {  // put out the backlight after timeout
+#ifdef LCD_DISPLAY
+    lcd.noBacklight();
+#endif
+    timerSec1Fired=false;
   }
 }
 
@@ -348,5 +443,6 @@ void read_dtmf_inputs()
     // put on end of queue
     fifo[fifoIn]=number_pressed;
     fifoIn=(fifoIn+1)%FIFO_LEN;
+    displayQueue();
   }
 }
