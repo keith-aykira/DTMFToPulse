@@ -60,6 +60,12 @@
 #define SHORT_LOW_HANGUP
 
 
+//  Start High:
+//     uncomment so at start up it starts HIGH
+#define START_HIGH
+
+
+
 #ifdef LCD_DISPLAY
 // https://github.com/johnrickman/LiquidCrystal_I2C
 // under code grab the zip and install
@@ -185,6 +191,10 @@ void setup() {
   ticker.start();   // lets get ticking
 
 #ifndef END_LOW_HANGUP
+  digitalWrite(output_pin, HIGH);
+#endif 
+
+#ifdef START_HIGH
   digitalWrite(output_pin, HIGH);
 #endif 
 
