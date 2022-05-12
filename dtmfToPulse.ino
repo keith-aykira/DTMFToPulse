@@ -9,7 +9,7 @@
 
 ///////////
 //
-// some lovely tweakables..
+// some lovely tweakables.. Hint: change one thing at a time
 
 
 #define SPEED 1
@@ -18,22 +18,28 @@
 
 
 //  Delay Dial Control:
-//     set to 1 to wait until after DELAY_TIMEOUT ms from last typed digit to start pulse dialing
+//     set DELAY_DAIL to 1 to wait until after DELAY_TIMEOUT ms from last typed digit to start pulse dialing
 
 #define DELAY_DAIL  0
 #define DELAY_TIMEOUT 1000*SPEED
 
 
 //  Minimum Digits:
-//     less than this number of digits and if you timeout you get hung up
+//     less than this number of digits toned and if you timeout you get hung up
 //     set to 0 to turn off
 
 #define MIN_DIGITS 4
 
 
+// Initial High Control:
+//   comment line below to stop initial HIGH pulse on start of dialling, used with High Low Hangup below
+#define INITIAL_HIGH
+
+
 //  Input Settling Time:
 //     how long to wait for inputs to settle (ms)
-#define INPUT_SETTLE_TIME 50
+#define INPUT_SETTLE_TIME 10
+
 
 //   Inactive Hangup Control:
 //     comment out line below if you ONLY want a '#' to trigger hangups and not timeouts or too few digits 
@@ -99,7 +105,7 @@ Ticker ticker(tickerKick,1);
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Hello, I'm in a terminal! Feed me");
+  Serial.println("Hello, I'm in a terminal! Feed me tones");
   Serial.println();
 
   /*Define input pins for DTMF Decoder pins connection */
@@ -110,7 +116,8 @@ void setup() {
   pinMode(q1_pin, INPUT); // connect to Q1 pin
 
   attachInterrupt(digitalPinToInterrupt(stq_pin), read_dtmf_inputs_intr, FALLING);
-  ticker.start();
+  ticker.start();   // lets get ticking
+
 #ifndef END_LOW_HANGUP
   digitalWrite(output_pin, HIGH);
 #endif 
@@ -122,11 +129,14 @@ void doStates() {
     case 0:  // start state
       if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
         if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
-          state=1;
-          digitCount=0;
+          last_hash_time=0;  // no dangling hangups pending
+#ifdef INITIAL_HIGH
           digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
           timer0=initial_gap;
-          last_hash_time=0;  // no dangling hangups pending
+          state=1;
+#else
+          state=2; // jump right into dialling
+#endif
         }
       }
       break;
@@ -135,11 +145,12 @@ void doStates() {
       if(timer0==0) {
         digitalWrite(output_pin, LOW);  // I'm here end
         state=2;
+        timer0=pulse_length_break;
       }
       break;
 
     case 2: 
-       if(fifoIn!=fifoOut) {  // something on the queue, grab it and move to state 3
+       if((timer0==0) && (fifoIn!=fifoOut)) {  // something on the queue, grab it and move to state 3
         numberP=fifo[fifoOut];
         fifoOut=(fifoOut+1)%FIFO_LEN;
         state=3;
@@ -265,6 +276,7 @@ void loop() {
         state=0;  // all good, we are done 
         Serial.println("Assume got connected, wait for more...");
       }
+      digitCount=0;   // reset count
     }
   }
 }
