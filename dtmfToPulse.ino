@@ -87,6 +87,8 @@ long hangup_timeout = 10*SPEED;
 long hangup_timeout = 3*SPEED;
 #endif
 
+// long idle timeout after which it will set HIGH if in state 0
+long idle_timeout = 10*60;   // in seconds
 
 long last_digit_time = 0;
 
@@ -97,9 +99,9 @@ byte fifo[FIFO_LEN];  // basic circular buffer
 byte fifoIn=0,fifoOut=0;  // head and tail pointers
 byte state=0, old_state=0;      // state machine current state
 byte numberP=0;    // number being pulsed
-volatile unsigned short timer0=0,timer1=0,timerSec0=0,timerSec1=0;   // 3 timers that countdown, last 2 in seconds
+volatile unsigned short timer0=0,timer1=0,timerSec0=0,timerSec1=0,timerSec2=0;   // 3 timers that countdown, last 3 in seconds
 volatile long secCount=0;
-boolean timerSec0Fired=false,timerSec1Fired=false;
+boolean timerSec0Fired=false,timerSec1Fired=false,timerSec2Fired=false;
 byte digitCount=0;  // count the digits typed, less than MIN_DIGITS and it does a hangup
 
 
@@ -134,6 +136,10 @@ void tickerKick() {  // the ticker routine
     if(timerSec1>0) {
       timerSec1--;
       if(timerSec1==0) timerSec1Fired=true;   // it only gets set once..
+    }
+    if(timerSec2>0) {
+      timerSec2--;
+      if(timerSec2==0) timerSec2Fired=true;   // it only gets set once..
     }
   }
 }
@@ -240,6 +246,7 @@ void doStates() {
       if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
         if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
           timerSec0=0;  // no dangling hangups pending
+          timerSec2=0;  // no dangling idle timeouts pending
           setStatus("New Tones     ");
 #ifdef INITIAL_HIGH
           digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
@@ -343,6 +350,7 @@ void doStates() {
 #ifdef END_LOW_HANGUP
 #ifdef SHORT_LOW_HANGUP
       state=0;
+      timerSec2=idle_timeout;
       setStatus("Waiting  ");
 #else
       digitalWrite(output_pin, HIGH);
@@ -352,6 +360,7 @@ void doStates() {
 #else
       digitalWrite(output_pin, HIGH);
       state=0;
+      timerSec2=idle_timeout;
       setStatus("Waiting  ");
 #endif
       break;
@@ -361,6 +370,7 @@ void doStates() {
       if(timer0==0) {
         digitalWrite(output_pin, LOW);  // I set this low, seems weird to leave high..
         state=0; // back to the start for next digit
+        timerSec2=idle_timeout;
         setStatus("Waiting  ");
       }
     }
@@ -411,6 +421,11 @@ void loop() {
     lcd.noBacklight();
 #endif
     timerSec1Fired=false;
+  }
+
+  if(timerSec2Fired) {
+    if(state==0) digitalWrite(output_pin, HIGH);  // idled out, set HIGH
+    timerSec2Fired=false;
   }
 }
 
