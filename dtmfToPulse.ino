@@ -38,7 +38,7 @@
 
 // Initial High Control:
 //   comment line below to stop initial HIGH pulse on start of dialling, used with High Low Hangup below
-#define INITIAL_HIGH
+//#define INITIAL_HIGH
 
 
 //  Input Settling Time:
@@ -53,7 +53,11 @@
 
 //   High Low Hangup:
 //     uncomment if you want the hang up to finish in a LOW state
-// #define END_LOW_HANGUP
+#define END_LOW_HANGUP
+
+//  Short Low Hangup:
+//     uncomment to not do 2nd round of HIGH/LOW pulse
+#define SHORT_LOW_HANGUP
 
 
 #ifdef LCD_DISPLAY
@@ -174,6 +178,8 @@ void setup() {
   pinMode(q3_pin, INPUT); // connect to Q3 pin
   pinMode(q2_pin, INPUT); // connect to Q2 pin
   pinMode(q1_pin, INPUT); // connect to Q1 pin
+  // output
+  pinMode(output_pin, OUTPUT); // connect to output
 
   attachInterrupt(digitalPinToInterrupt(stq_pin), read_dtmf_inputs_intr, FALLING);
   ticker.start();   // lets get ticking
@@ -324,11 +330,17 @@ void doStates() {
     }
 
     case 102: {
-      digitalWrite(output_pin, HIGH);
 #ifdef END_LOW_HANGUP
+#ifdef SHORT_LOW_HANGUP
+      state=0;
+      setStatus("Waiting  ");
+#else
+      digitalWrite(output_pin, HIGH);
       timer0=pulse_hangup_delay*2;  // set high for 2* hangup
       state=103;
+#endif
 #else
+      digitalWrite(output_pin, HIGH);
       state=0;
       setStatus("Waiting  ");
 #endif
