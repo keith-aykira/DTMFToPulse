@@ -6,8 +6,6 @@
 
 // 1 pulse = 50ms on, 50ms off
 
-// wiring at https://wokwi.com/projects/331414878730322516
-
 
 ///////////
 //
@@ -16,7 +14,7 @@
 // uncomment for debug settings
 // #define DEBUG
 
-//    uncomment if i2c LCD display present   (GND, VCC, SDA to A4, SCL to A5)
+//    uncomment if i2c LCD display present
 #define LCD_DISPLAY
 
 #define SPEED 1
@@ -136,7 +134,9 @@ Ticker ticker(tickerKick,1);
 
 void backLightOn() {
   if(timerSec1==0) {
+#ifdef LCD_DISPLAY
     lcd.backlight();
+#endif
     timerSec1=60;
   }
 }
@@ -198,6 +198,7 @@ char mapFifo(byte c) {
 
 
 void displayQueue() {
+#ifdef LCD_DISPLAY
   int i=fifoOut,p=0;
   while((i!=fifoIn) && (p<8)) {
     char c[2];
@@ -213,6 +214,7 @@ void displayQueue() {
     lcd.print(" ");
     p++;
   }
+#endif
 }
 
 
