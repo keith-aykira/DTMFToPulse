@@ -4,3 +4,9 @@ Converts DTMF logic to pulses. Does so using a state machine and countdown timer
 A state machine is a piece of code which moves between a number of states, a bit like a piece on a Snakes & ladders board. Each state runs a little bit of code, which then can do something and then 'jump' to another state. You often find these used to reliably progress some form of processing, be that for some inputs or to generate some outputs, or do both at the same time (yes you can have multiple pieces/states in play at once, but you really need to know what you are doing). Quite often what was a horrid nest of IF THEN ELSE statements with random timers in it converts into a more readily readable state machine.
 ## the multiple async problem
 When you have to deal with different things occuring that are interrelated to each other, in this case DTMF codes driving a slower pulse train, you have be very careful you don't create hidden side effects. This typically is seen when you have to resort to controlling interrupts on mass to ensure ordering - something will often drop between the cracks. I like to keep things simple and use interrupt action flags and a state machine so you know whats going on.
+
+
+#Configs
+At the top of the file is a set of hash defines that control the behaviour when hang ups occur, how quickly it tries to Pulse dial and whether it holds HIGH or LOW when idle.
+
+Below the configs is a section controlling the various timing presets.
