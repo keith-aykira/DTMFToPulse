@@ -5,26 +5,68 @@
 //  this way you can have inputs and outputs occuring at the same time without conflicts
 
 // 1 pulse = 50ms on, 50ms off
-int pulse_length_make = 33;
-int pulse_length_break = 66;
-int pulse_hangup_delay = 1000;
-int interdigit_gap = 300;
+
+
+///////////
+//
+// some lovely tweakables..
+
+
+#define SPEED 1
+//  vvv uncomment to go a factor of 4 slower
+//#define SPEED 4
+
+
+//  Delay Dial Control:
+//     set to 1 to wait until after DELAY_TIMEOUT ms from last typed digit to start pulse dialing
+
+#define DELAY_DAIL  0
+#define DELAY_TIMEOUT 1000*SPEED
+
+
+//  Minimum Digits:
+//     less than this number of digits and if you timeout you get hung up
+//     set to 0 to turn off
+
+#define MIN_DIGITS 4
+
+
+//  Input Settling Time:
+//     how long to wait for inputs to settle (ms)
+#define INPUT_SETTLE_TIME 50
+
+//   Inactive Hangup Control:
+//     comment out line below if you ONLY want a '#' to trigger hangups and not timeouts or too few digits 
+#define INACTIVE_HANGUP
+
+
+//   High Low Hangup:
+//     uncomment if you want the hang up to finish in a LOW state
+// #define END_LOW_HANGUP
+
+
+//   Individual Timing Controls
+int pulse_length_make = 33*SPEED;
+int pulse_length_break = 66*SPEED;
+int pulse_hangup_delay = 1000*SPEED;
+int interdigit_gap = 300*SPEED;
+int initial_gap = 300*SPEED;
 
 //int hangup_timeout = 60*1000*15;
-int hangup_timeout = 3000;
+int hangup_timeout = 3000*SPEED;
 
 long last_hash_time = 0;
-
+long last_digit_time = 0;
 
 
 #define FIFO_LEN 20
 volatile boolean doDTMFread=false;  // flag to main routine to do DTMF read
 byte fifo[FIFO_LEN];  // basic circular buffer
 byte fifoIn=0,fifoOut=0;  // head and tail pointers
-byte state=0;      // state machine current state
+byte state=0, old_state=0;      // state machine current state
 byte numberP=0;    // number being pulsed
 volatile unsigned short timer0=0,timer1=0;   // the two timers that countdown
-
+byte digitCount=0;  // count the digits typed, less than MIN_DIGITS and it does a hangup
 
 
 // pin config
@@ -41,7 +83,7 @@ volatile unsigned short timer0=0,timer1=0;   // the two timers that countdown
 void read_dtmf_inputs_intr() {
   // keep very short
   doDTMFread=true;
-  timer1=250;  // settle down delay before reading pins
+  timer1=INPUT_SETTLE_TIME;  // settle down delay before reading pins
 }
 
 
@@ -57,7 +99,7 @@ Ticker ticker(tickerKick,1);
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Hello, I'm in a terminal!");
+  Serial.println("Hello, I'm in a terminal! Feed me");
   Serial.println();
 
   /*Define input pins for DTMF Decoder pins connection */
@@ -68,59 +110,85 @@ void setup() {
   pinMode(q1_pin, INPUT); // connect to Q1 pin
 
   attachInterrupt(digitalPinToInterrupt(stq_pin), read_dtmf_inputs_intr, FALLING);
+  ticker.start();
+#ifndef END_LOW_HANGUP
+  digitalWrite(output_pin, HIGH);
+#endif 
 }
 
 
 void doStates() {
   switch(state) {   // state matches to each case..
     case 0:  // start state
-      if(fifoIn!=fifoOut) {  // something on the queue, grab it and move to state 1
-        numberP=fifo[fifoOut];
-        fifoOut=(fifoOut+1)%FIFO_LEN;
-        state=1;
+      if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
+        if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
+          state=1;
+          digitCount=0;
+          digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
+          timer0=initial_gap;
+          last_hash_time=0;  // no dangling hangups pending
+        }
       }
       break;
 
     case 1:
+      if(timer0==0) {
+        digitalWrite(output_pin, LOW);  // I'm here end
+        state=2;
+      }
+      break;
+
+    case 2: 
+       if(fifoIn!=fifoOut) {  // something on the queue, grab it and move to state 3
+        numberP=fifo[fifoOut];
+        fifoOut=(fifoOut+1)%FIFO_LEN;
+        state=3;
+      }
+      break;  // we wait here for more digits..  hangup timeout applies here only
+
+    case 3:
       if(numberP==0x0c) {
         state=100; // hangup, move to state 100
       } else {
-        state=2; // regular digit, move to state 2
+        state=4; // regular digit, move to state 4
       }
       break;
-
-    case 2: {
-      digitalWrite(output_pin, HIGH);  //set high for pulse time and move to state 3
-      timer0=pulse_length_make;
-      state=3;
-      break;
-    }
-
-    case 3: {
-      if(timer0==0) {  // only do when timer stopped
-        digitalWrite(output_pin, LOW); // set low for pulse time and time to state 4
-        timer0=pulse_length_break;
-        state=4;
-      }
-      break;
-    }
 
     case 4: {
-      if(timer0==0) {     // timer finished
-        numberP--;        // done one pulse train
-        if(numberP==0) {  // none left
-          timer0=interdigit_gap; // time the gap and move to state 5
-          state=5;
-          break;
-        }
-        state=2;
-      }
+      digitalWrite(output_pin, HIGH);  //set high for pulse time and move to state 5
+      timer0=pulse_length_make;
+      state=5;
       break;
     }
 
     case 5: {
+      if(timer0==0) {  // only do when timer stopped
+        digitalWrite(output_pin, LOW); // set low for pulse time and time to state 6
+        timer0=pulse_length_break;
+        state=6;
+      }
+      break;
+    }
+
+    case 6: {
+      if(timer0==0) {     // timer finished
+        numberP--;        // done one pulse train
+        if(numberP==0) {  // none left
+          timer0=interdigit_gap; // time the gap and move to state 7
+          state=7;
+          break;
+        }
+        state=4;  // next pulse
+      }
+      break;
+    }
+
+    case 7: {
       if(timer0==0) {
-        state=0;  // back to the start for next digit
+        state=2;  // back to the start for next digit
+#ifdef INACTIVE_HANGUP
+        last_hash_time=millis();   // hangup if inactive
+#endif
       }
     }
     break;
@@ -143,8 +211,12 @@ void doStates() {
 
     case 102: {
       digitalWrite(output_pin, HIGH);
+#ifdef END_LOW_HANGUP
       timer0=pulse_hangup_delay*2;  // set high for 2* hangup
       state=103;
+#else
+      state=0;
+#endif
       break;
     }
 
@@ -166,19 +238,35 @@ void loop() {
   if( doDTMFread && (timer1==0)) { // read the DTMF
     doDTMFread=false;   //done handling interrupted flag
     read_dtmf_inputs();
+    last_digit_time = millis();
+    digitCount++;
   }
   
   doStates();   // the magical state machine
 
-  long now = millis();
-  long diff_times = (now-last_hash_time);
-  if ( (diff_times > (hangup_timeout)) & (diff_times != 0) )
-  {
-    fifo[fifoIn]=0x0c;  // throw a hangup on the queue
-    fifoIn=(fifoIn+1)%FIFO_LEN;
-    Serial.println("you took too long!!!");
+  if(state!=old_state) {
+    Serial.print(old_state);
+    Serial.print(" -> ");
+    Serial.println(state);
+    old_state=state;
   }
 
+  if( last_hash_time>0) {
+    long now = millis();
+    long diff_times = (now-last_hash_time);
+    if ( (diff_times > (hangup_timeout)) && (diff_times != 0) && (state==2)) {
+      if(digitCount<MIN_DIGITS) {
+        fifo[fifoIn]=0x0c;  // throw a hangup on the queue
+        fifoIn=(fifoIn+1)%FIFO_LEN;
+        last_hash_time=0;  // there is only one hangup
+        Serial.println("Slow and too few digits => hangup");
+      }
+      else {
+        state=0;  // all good, we are done 
+        Serial.println("Assume got connected, wait for more...");
+      }
+    }
+  }
 }
 
 void read_dtmf_inputs()
@@ -230,43 +318,9 @@ void read_dtmf_inputs()
     break;    
   }
 
-  // put on end of queue
-  fifo[fifoIn]=number_pressed;
-  fifoIn=(fifoIn+1)%FIFO_LEN;
-}
-
-
-// code below here no longer needed, but kept for reference
-
-void number_pulse_out(int number_pressed) 
-{
-  if (number_pressed==0x0C) {
-    hang_up();
+  if(number_pressed>0) {
+    // put on end of queue
+    fifo[fifoIn]=number_pressed;
+    fifoIn=(fifoIn+1)%FIFO_LEN;
   }
-  
-  for (int i = 0; i < number_pressed; i++)
-  {
-    digitalWrite(output_pin, HIGH);
-    delay(pulse_length_make);
-    digitalWrite(output_pin, LOW);
-    delay(pulse_length_break);
-    Serial.print("\nnumber_pressed=");
-    Serial.print(number_pressed);
-    Serial.print("\ni=");
-    Serial.print(i);
-    Serial.println();
-  }
-  delay(interdigit_gap);
-}
-
-
-void hang_up()
-{
-  digitalWrite(output_pin, HIGH);
-  delay(pulse_hangup_delay);
-  digitalWrite(output_pin, LOW);
-  delay(pulse_hangup_delay);
-  delay(pulse_hangup_delay);
-  digitalWrite(output_pin, HIGH);
-  return;
 }
