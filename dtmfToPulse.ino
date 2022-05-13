@@ -229,7 +229,12 @@ void displayQueue() {
     p++;
     i=(i+1)%FIFO_LEN;
   }
-  while(p<8) {
+  if(i==fifoOut) {
+    lcd.setCursor(p,1);
+    p++;
+    lcd.print("^");
+  }
+  while(p<9) {
     lcd.setCursor(p,1);
     lcd.print(" ");
     p++;
@@ -239,6 +244,7 @@ void displayQueue() {
 
 void resetQueue() {
   fifoIn=fifoOut=fifoDone=0;
+  digitCount=0;
   displayQueue();
 }
 
@@ -459,6 +465,7 @@ void loop() {
     last_digit_time = millis();
     digitCount++;
     if(digitCount>8) fifoDone=(fifoDone+readDigits)%FIFO_LEN;  // for the queue display
+    if(readDigits>0) displayQueue();
   }
   
   doStates();   // the magical state machine
