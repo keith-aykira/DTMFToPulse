@@ -215,7 +215,7 @@ char mapFifo(byte c) {
 void displayQueue() {
 #ifdef LCD_DISPLAY
   int i=fifoDone,p=0;
-  while((i!=fifoIn) && (p<8)) {
+  while((i!=fifoIn) && (p<=8)) {
     char c[2];
     if(i==fifoOut) {
       lcd.setCursor(p,1);
@@ -234,7 +234,7 @@ void displayQueue() {
     p++;
     lcd.print("^");
   }
-  while(p<9) {
+  while(p<10) {
     lcd.setCursor(p,1);
     lcd.print(" ");
     p++;
@@ -425,7 +425,7 @@ void doStates() {
     case 102: {
 #ifdef END_LOW_HANGUP
 #ifdef SHORT_LOW_HANGUP
-      state=0;
+      state=2;
       timerSec2=idle_timeout;
       setStatus("Wait   ");
 #else
@@ -482,8 +482,7 @@ void loop() {
   if ( timerSec0Fired && (state==2)) {
     timerSec0Fired=false;
     if(digitCount<MIN_DIGITS) {
-      fifo[fifoIn]=0x0c;  // throw a hangup on the queue
-       fifoIn=(fifoIn+1)%FIFO_LEN;
+      putOnQueue(0x0c);
       Serial.println("Slow and too few digits => hangup");
     }
     else {
