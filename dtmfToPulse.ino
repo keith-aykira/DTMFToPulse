@@ -66,6 +66,20 @@
 #define START_HIGH
 
 
+// Idle Hangup:
+//     uncomment line below so that when an idle has occurred it will inject a hangup before the
+//       next dialed number
+#define IDLE_HANGUP
+
+
+
+//  Start Hangup:
+//     uncomment line below so from power up inject a hangup with first caller
+#define START_HANGUP
+
+
+
+
 
 #ifdef LCD_DISPLAY
 // https://github.com/johnrickman/LiquidCrystal_I2C
@@ -111,8 +125,9 @@ byte numberP=0;    // number being pulsed
 volatile unsigned short timer0=0,timer1=0,timerSec0=0,timerSec1=0,timerSec2=0;   // 3 timers that countdown, last 3 in seconds
 volatile long secCount=0;
 boolean timerSec0Fired=false,timerSec1Fired=false,timerSec2Fired=false;
+boolean injectHangup=false;
 byte digitCount=0;  // count the digits typed, less than MIN_DIGITS and it does a hangup
-
+unsigned int callCount=0;  // keep track of calls processed
 
 // pin config
 #define stq_pin 3 //for nano, can only use D2 or D3 for interrupt pins.
@@ -130,6 +145,9 @@ void read_dtmf_inputs_intr() {
   doDTMFread=true;
   timer1=INPUT_SETTLE_TIME;  // settle down delay before reading pins
 }
+
+
+
 
 
 void tickerKick() {  // the ticker routine
@@ -176,50 +194,15 @@ void setStatus(char *s) {
 }
 
 
-void setState() {
+void displayState() {
 #ifdef LCD_DISPLAY
-  char st[4];
-  sprintf(st,"%03d",state);
-  lcd.setCursor(13,1);
+  char st[5];
+  sprintf(st,"S%03d",state);
+  lcd.setCursor(12,1);
   lcd.print(st);
 #endif
 }
 
-
-
-
-void setup() {
-  Serial.begin(9600);
-  Serial.println("Hello, I'm in a terminal! Feed me tones");
-  Serial.println();
-
-  /*Define input pins for DTMF Decoder pins connection */
-  pinMode(stq_pin, INPUT); // connect to Std pin
-  pinMode(q4_pin, INPUT); // connect to Q4 pin
-  pinMode(q3_pin, INPUT); // connect to Q3 pin
-  pinMode(q2_pin, INPUT); // connect to Q2 pin
-  pinMode(q1_pin, INPUT); // connect to Q1 pin
-  // output
-  pinMode(output_pin, OUTPUT); // connect to output
-
-  attachInterrupt(digitalPinToInterrupt(stq_pin), read_dtmf_inputs_intr, FALLING);
-  ticker.start();   // lets get ticking
-
-#ifndef END_LOW_HANGUP
-  digitalWrite(output_pin, HIGH);
-#endif 
-
-#ifdef START_HIGH
-  digitalWrite(output_pin, HIGH);
-#endif 
-
-#ifdef LCD_DISPLAY
-  lcd.init();                      // initialize the lcd
-#endif 
-  // Print a message to the LCD.
-  setStatus("GDay Mate!");
-
-}
 
 char mapFifo(byte c) {
   if(c==0xc) return '#';
@@ -249,14 +232,80 @@ void displayQueue() {
 }
 
 
+void putOnQueue(uint8_t numberP) {
+  if(numberP>0) {
+    // put on end of queue
+    fifo[fifoIn]=numberP;
+    fifoIn=(fifoIn+1)%FIFO_LEN;
+    displayQueue();
+  }
+}
+
+
+void displayCallCount() {
+#ifdef LCD_DISPLAY
+  char s[5];
+  sprintf(s,"C%03d",callCount);
+  lcd.setCursor(12,0);
+  lcd.print(s);
+#endif
+}
+
+
+
+
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Hello, I'm in a terminal! Feed me tones");
+  Serial.println();
+
+  /*Define input pins for DTMF Decoder pins connection */
+  pinMode(stq_pin, INPUT); // connect to Std pin
+  pinMode(q4_pin, INPUT); // connect to Q4 pin
+  pinMode(q3_pin, INPUT); // connect to Q3 pin
+  pinMode(q2_pin, INPUT); // connect to Q2 pin
+  pinMode(q1_pin, INPUT); // connect to Q1 pin
+  // output
+  pinMode(output_pin, OUTPUT); // connect to output
+
+  attachInterrupt(digitalPinToInterrupt(stq_pin), read_dtmf_inputs_intr, FALLING);
+  ticker.start();   // lets get ticking
+
+#ifndef END_LOW_HANGUP
+  digitalWrite(output_pin, HIGH);
+#endif 
+
+#ifdef START_HIGH
+  digitalWrite(output_pin, HIGH);
+#endif 
+
+#ifdef START_HANGUP
+  injectHangup=true;
+#endif
+
+
+#ifdef LCD_DISPLAY
+  lcd.init();                      // initialize the lcd
+#endif 
+  // Print a message to the LCD.
+  setStatus("GDay Mate!");
+
+}
+
+
+
+
+
 void doStates() {
   switch(state) {   // state matches to each case..
     case 0:  // start state
       if(fifoIn!=fifoOut) {  // someone dialed in, move to state 1
         if( (DELAY_DAIL==0) || ((last_digit_time+DELAY_TIMEOUT)<millis()) ) {
+          callCount++;
+          displayCallCount();
           timerSec0=0;  // no dangling hangups pending
           timerSec2=idle_timeout;  // idle timeout reset
-          setStatus("New Tones     ");
 #ifdef INITIAL_HIGH
           digitalWrite(output_pin, HIGH);  // an initial "I'm here" HIGH
           timer0=initial_gap;
@@ -283,7 +332,7 @@ void doStates() {
           fifoOut=(fifoOut+1)%FIFO_LEN;
           displayQueue();
           char temp[10];
-          sprintf(temp,"Dial %c       ",mapFifo(numberP));
+          sprintf(temp,"Dial %c    ",mapFifo(numberP));
           setStatus(temp);
           state=3;
         }
@@ -293,7 +342,7 @@ void doStates() {
     case 3:
       if(numberP==0x0c) {
         state=100; // hangup, move to state 100
-        setStatus("Hang Up       ");
+        setStatus("Hang Up   ");
       } else {
         state=4; // regular digit, move to state 4
       }
@@ -331,7 +380,7 @@ void doStates() {
     case 7: {
       if(timer0==0) {
         state=2;  // back to the start for next digit
-        if(fifoIn==fifoOut) setStatus("Done        ");
+        if(fifoIn==fifoOut) setStatus("Done      ");
 #ifdef INACTIVE_HANGUP
         timerSec0=hangup_timeout;  // hangup if inactive
 #endif
@@ -360,7 +409,7 @@ void doStates() {
 #ifdef SHORT_LOW_HANGUP
       state=0;
       timerSec2=idle_timeout;
-      setStatus("Waiting  ");
+      setStatus("Wait   ");
 #else
       digitalWrite(output_pin, HIGH);
       timer0=pulse_hangup_delay*2;  // set high for 2* hangup
@@ -370,7 +419,7 @@ void doStates() {
       digitalWrite(output_pin, HIGH);
       state=0;
       timerSec2=idle_timeout;
-      setStatus("Waiting  ");
+      setStatus("Wait   ");
 #endif
       break;
     }
@@ -380,7 +429,7 @@ void doStates() {
         digitalWrite(output_pin, LOW);  // I set this low, seems weird to leave high..
         state=0; // back to the start for next digit
         timerSec2=idle_timeout;
-        setStatus("Waiting  ");
+        setStatus("Wait   ");
       }
     }
     break;
@@ -405,7 +454,7 @@ void loop() {
     Serial.print(old_state);
     Serial.print(" -> ");
     Serial.println(state);
-    setState();
+    displayState();
     old_state=state;
   }
 
@@ -420,7 +469,7 @@ void loop() {
     else {
       state=0;  // all good, we are done 
       Serial.println("Assume got connected, wait for more...");
-      setStatus("Waiting  ");
+      setStatus("Wait   ");
     }
     digitCount=0;   // reset count
   }
@@ -434,7 +483,14 @@ void loop() {
 
   if(timerSec2Fired) {
    
-   if((state==0) || (state==2)) digitalWrite(output_pin, HIGH);  // idled out, set HIGH
+   if((state==0) || (state==2)) {
+      digitalWrite(output_pin, HIGH);  // idled out, set HIGH
+      setStatus("Idled   ");
+      state=0;
+#ifdef IDLE_HANGUP
+      injectHangup=true;
+#endif
+    }
     timerSec2Fired=false;
   }
 }
@@ -488,10 +544,10 @@ void read_dtmf_inputs()
     break;    
   }
 
-  if(number_pressed>0) {
-    // put on end of queue
-    fifo[fifoIn]=number_pressed;
-    fifoIn=(fifoIn+1)%FIFO_LEN;
-    displayQueue();
+  if(injectHangup) {
+    putOnQueue(0x0c); // wakey wakey!
+    injectHangup=false;
   }
+
+  putOnQueue(number_pressed);
 }
