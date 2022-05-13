@@ -120,6 +120,7 @@ long last_digit_time = 0;
 volatile boolean doDTMFread=false;  // flag to main routine to do DTMF read
 byte fifo[FIFO_LEN];  // basic circular buffer
 byte fifoIn=0,fifoOut=0;  // head and tail pointers
+byte fifoDone=0; // beginning of display
 byte state=0, old_state=0;      // state machine current state
 byte numberP=0;    // number being pulsed
 volatile unsigned short timer0=0,timer1=0,timerSec0=0,timerSec1=0,timerSec2=0;   // 3 timers that countdown, last 3 in seconds
@@ -213,9 +214,14 @@ char mapFifo(byte c) {
 
 void displayQueue() {
 #ifdef LCD_DISPLAY
-  int i=fifoOut,p=0;
+  int i=fifoDone,p=0;
   while((i!=fifoIn) && (p<8)) {
     char c[2];
+    if(i==fifoOut) {
+      lcd.setCursor(p,1);
+      p++;
+      lcd.print("^");
+    }
     c[0]=mapFifo(fifo[i]);
     lcd.setCursor(p,1);
     c[1]=0;
@@ -231,14 +237,20 @@ void displayQueue() {
 #endif
 }
 
+void resetQueue() {
+  fifoIn=fifoOut=fifoDone=0;
+  displayQueue();
+}
 
-void putOnQueue(uint8_t numberP) {
+int putOnQueue(uint8_t numberP) {
   if(numberP>0) {
     // put on end of queue
     fifo[fifoIn]=numberP;
     fifoIn=(fifoIn+1)%FIFO_LEN;
     displayQueue();
+    return 1;
   }
+  return 0;
 }
 
 
@@ -443,9 +455,10 @@ void loop() {
   
   if( doDTMFread && (timer1==0)) { // read the DTMF
     doDTMFread=false;   //done handling interrupted flag
-    read_dtmf_inputs();
+    int readDigits=read_dtmf_inputs();
     last_digit_time = millis();
     digitCount++;
+    if(digitCount>8) fifoDone=(fifoDone+readDigits)%FIFO_LEN;  // for the queue display
   }
   
   doStates();   // the magical state machine
@@ -487,6 +500,7 @@ void loop() {
       digitalWrite(output_pin, HIGH);  // idled out, set HIGH
       setStatus("Idled   ");
       state=0;
+      resetQueue();
 #ifdef IDLE_HANGUP
       injectHangup=true;
 #endif
@@ -495,11 +509,11 @@ void loop() {
   }
 }
 
-void read_dtmf_inputs()
+int read_dtmf_inputs()
 {
   Serial.println("Hello, I'm in read_dtmf_inputs()!");
   Serial.println();
-  uint8_t number_pressed;
+  uint8_t number_pressed, readDigits=0;
   // delay(250);  // done with timer1
   // checks q1,q2,q3,q4 to see what number is pressed.
   number_pressed = ( 0x00 | (digitalRead(q4_pin)<<0) | (digitalRead(q3_pin)<<1) | (digitalRead(q2_pin)<<2) | (digitalRead(q1_pin)<<3) );
@@ -545,9 +559,11 @@ void read_dtmf_inputs()
   }
 
   if(injectHangup) {
-    putOnQueue(0x0c); // wakey wakey!
+    if(putOnQueue(0x0c)) readDigits++; // wakey wakey!
     injectHangup=false;
   }
 
-  putOnQueue(number_pressed);
+  if(putOnQueue(number_pressed)) readDigits++;
+
+  return readDigits;
 }
