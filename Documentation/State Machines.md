@@ -1,10 +1,30 @@
 
 # What is a state machine?
 
-A state machine is a piece of code which moves between a number of states, a bit like a piece on a Snakes & ladders board.
+A state machine is a piece of code which moves <br>
+between a number of states, a bit like a piece on <br>
+a **Snakes & Ladders** board.
 
-Each state runs a little bit of code, which then can do something and then 'jump' to another state.
+Each state runs a bit of code and <br>
+afterwards *jumps* to another state.
 
-You often find these used to reliably progress some form of processing, be that for some inputs or to generate some outputs, or do both at the same time (yes you can have multiple pieces/states in play at once, but you really need to know what you are doing).
+<br>
 
-Quite often what was a horrid nest of IF THEN ELSE statements with random timers in it converts into a more readily readable state machine.
+## Usage 
+
+You often find these used to reliably control some <br>
+forms of processing, be that for some inputs, to <br>
+generate some outputs or do both at the same time.
+
+*While it is possible to have multiple pieces / states in* <br>
+*play at once, you need to know what you are doing.*
+
+<br>
+
+## Comparison
+
+Quite often horrid nests of <kbd>if</kbd> <kbd>then</kbd> <kbd>else</kbd> statements <br>
+with random timers can be converted into more readable <br>
+state machine.
+
+<br>
