@@ -23,7 +23,7 @@ generate some outputs or do both at the same time.
 
 ## Comparison
 
-Quite often horrid nests of <kbd>if</kbd> <kbd>then</kbd> <kbd>else</kbd> statements <br>
+Quite often horrid nests of <kbd> if </kbd> <kbd> then </kbd> <kbd> else </kbd> statements <br>
 with random timers can be converted into more readable <br>
 state machine.
 

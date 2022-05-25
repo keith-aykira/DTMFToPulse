@@ -28,7 +28,7 @@ The conversion is done using **State Machines** & **Countdown Timers**.
 
 ## Limitation
 
-The `delay()` function cannot be used as the <br>
+The `delay()` function cannot be used as the <br>
 digital **DTMF** input can occur at any time and <br>
 it's signal changes are faster than any output. <br>
 
