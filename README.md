@@ -20,15 +20,39 @@
 
 <br>
 
-Does so using a state machine and countdown timers. delay() cannot be used at all in this case as the digital DTMF input could occur at any time and the speed of the DTMF changes is faster than output pulses, so using delays() in the pulse generation won't work (any more than one DTMF tone transition during this pulsing will be dropped).
+The conversion is done using **State Machines** & **Countdown Timers**.
 
+<br>
 
+## Limitation
 
-# Configs
-At the top of the file is a set of hash defines that control the behaviour when hang ups occur, how quickly it tries to Pulse dial and whether it holds HIGH or LOW when idle.
+The `delay()` function cannot be used as the <br>
+digital **DTMF** input can occur at any time and <br>
+it's signal changes are faster than any output. <br>
 
-Below the configs is a section controlling the various timing presets.
+Thus the delay function cannot even be used <br>
+for pulse generation, since this could mean <br>
+dropping pulses of the **DTMF** tone.
 
+<br>
+
+## Configuration
+
+At the start of the source file you can find <br>
+preprocessor definitions that allow you to:
+
+- Control the behavior when hangups occur
+
+- Adjust how quickly dials are pulsed
+
+- Set whether to stay LOW / HIGH when idle
+
+<br>
+
+*In the section below the previous you* <br>
+*will find the various timing presets.*
+
+<br>
 
 
 <!----------------------------------------------------------------------------->
