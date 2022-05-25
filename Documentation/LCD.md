@@ -31,7 +31,7 @@ The display is split into four areas:
 
 ## Backlight
 
-Will turn on for 60 seconds after the last change, <br>
+Will turn on for `60 seconds` after the last change, <br>
 to make it easy to see activity from a distance.
 
 <br>
