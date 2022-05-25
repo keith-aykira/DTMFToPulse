@@ -1,0 +1,3 @@
+# Improvements
+- a prefix insert switch - so if Sam wants to divert everyone to a single extension, he can just have a switch to pull low an input, which should be safe to wire as a group across the set (assuming the same potential ground). This could be used when doing maintenance or making announcements etc.
+- hard time out. this would enforce a maximum session time after which it won't do number pulses anymore - any way to chuck someone off the incoming line? hmm...

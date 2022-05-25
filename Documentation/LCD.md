@@ -1,0 +1,2 @@
+# LCD Display
+The code will support a i2c 16x2 LCD display, how to wire it up is at the top of the code. The display is split into four areas: top left quadrant is for status messages, top right is for a count of callers so far, bottom left is what was dialled with a little ^ pointer showing you where the Pulsing has got to and bottom right shows the current state machine state.  The backlight will come on for 60 seconds after the last change, so makes it very easy to see activity from a distance.
