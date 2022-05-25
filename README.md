@@ -59,7 +59,7 @@ preprocessor definitions that allow you to:
 
 <!----------------------------------------------------------------------------->
 
-[State Machines]: Documentation/State%20Machineies.md
+[State Machines]: Documentation/State%20Machines.md
 [Async Problem]: Documentation/Async%20Problem.md
 [Improvements]: Documentation/Improvements.md
 [LCD]: Documentation/LCD.md
