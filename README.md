@@ -9,10 +9,10 @@
 
 ---
 
-[![Button LCD]][LCD]  
-[![Button State Machines]][State Machines]  
-[![Button Async Problem]][Async Problem]  
-[![Button Improvements]][Improvements]
+[<kbd> <br> LCD <br> </kbd>][LCD]   
+[<kbd> <br> State <br> Machines <br> </kbd>][State Machines]   
+[<kbd> <br> Mutliple <br> Async Problem <br> </kbd>][Async Problem]   
+[<kbd> <br> Improvements <br> </kbd>][Improvements]
 
 ---
 
@@ -67,10 +67,3 @@ preprocessor definitions that allow you to:
 
 [Badge License]: https://img.shields.io/badge/License-Unknown-808080.svg?style=for-the-badge
 [License]: #
-
-<!---------------------------------{ Buttons }--------------------------------->
-
-[Button State Machines]: https://img.shields.io/badge/State_Machines-c9c307?style=for-the-badge&logoColor=white&logo=MaterialDesignIcons
-[Button Async Problem]: https://img.shields.io/badge/Multiple_Async_Problem-884cc9?style=for-the-badge&logoColor=white&logo=ChakraUI
-[Button Improvements]: https://img.shields.io/badge/Improvements-33c56e?style=for-the-badge&logoColor=white&logo=AddThis
-[Button LCD]: https://img.shields.io/badge/LCD-73ade7?style=for-the-badge&logoColor=white&logo=GNOMETerminal
