@@ -1,5 +1,5 @@
 
-# DTMFToPulse
+# DTMFToPulse    [![Badge License]][License]
 
 ***DTMF Logic   🠖   Pulses***
 
@@ -16,12 +16,13 @@
 
 ---
 
-</div>
-
 <br>
 
 The conversion is done using **State Machines** & **Countdown Timers**.
 
+</div>
+
+<br>
 <br>
 
 ## Limitation
@@ -34,6 +35,7 @@ Thus the delay function cannot even be used <br>
 for pulse generation, since this could mean <br>
 dropping pulses of the **DTMF** tone.
 
+<br>
 <br>
 
 ## Configuration
@@ -62,6 +64,8 @@ preprocessor definitions that allow you to:
 [Improvements]: Documentation/Improvements.md
 [LCD]: Documentation/LCD.md
 
+[Badge License]: https://img.shields.io/badge/License-Unknown-808080.svg?style=for-the-badge
+[License]: #
 
 <!---------------------------------{ Buttons }--------------------------------->
 
