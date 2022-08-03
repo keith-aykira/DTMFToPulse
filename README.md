@@ -1,19 +1,78 @@
-# DTMFToPulse
-Converts DTMF logic to pulses. Does so using a state machine and countdown timers. delay() cannot be used at all in this case as the digital DTMF input could occur at any time and the speed of the DTMF changes is faster than output pulses, so using delays() in the pulse generation won't work (any more than one DTMF tone transition during this pulsing will be dropped).
-## What is a state machine?
-A state machine is a piece of code which moves between a number of states, a bit like a piece on a Snakes & ladders board. Each state runs a little bit of code, which then can do something and then 'jump' to another state. You often find these used to reliably progress some form of processing, be that for some inputs or to generate some outputs, or do both at the same time (yes you can have multiple pieces/states in play at once, but you really need to know what you are doing). Quite often what was a horrid nest of IF THEN ELSE statements with random timers in it converts into a more readily readable state machine.
-## the multiple async problem
-When you have to deal with different things occuring that are interrelated to each other, in this case DTMF codes driving a slower pulse train, you have be very careful you don't create hidden side effects. This typically is seen when you have to resort to controlling interrupts on mass to ensure ordering - something will often drop between the cracks. I like to keep things simple and use interrupt action flags and a state machine so you know whats going on.
+
+# DTMFToPulse    [![Badge License]][License]
+
+***DTMF Logic   🠖   Pulses***
+
+<br>
+<br>
+<br>
+
+<div align = center>
+
+[![Button LCD]][LCD]   
+[![Button State]][State]   
+[![Button Async]][Async]   
+[![Button Improvements]][Improvements]
+
+<br>
+<br>
+
+The conversion is done using **State Machines** & **Countdown Timers**.
+
+</div>
+
+<br>
+<br>
+
+## Limitation
+
+The `delay()` function cannot be used as the <br>
+digital **DTMF** input can occur at any time and <br>
+it's signal changes are faster than any output. <br>
+
+Thus the delay function cannot even be used <br>
+for pulse generation, since this could mean <br>
+dropping pulses of the **DTMF** tone.
+
+<br>
+<br>
+
+## Configuration
+
+At the start of the source file you can find <br>
+preprocessor definitions that allow you to:
+
+- Control the behavior when hangups occur
+
+- Adjust how quickly dials are pulsed
+
+- Set whether to stay LOW / HIGH when idle
+
+<br>
+
+*In the section below the previous you* <br>
+*will find the various timing presets.*
+
+<br>
 
 
-# Configs
-At the top of the file is a set of hash defines that control the behaviour when hang ups occur, how quickly it tries to Pulse dial and whether it holds HIGH or LOW when idle.
+<!----------------------------------------------------------------------------->
 
-Below the configs is a section controlling the various timing presets.
+[Improvements]: Documentation/Improvements.md
+[License]: #
+[State]: Documentation/State%20Machines.md
+[Async]: Documentation/Async%20Problem.md
+[LCD]: Documentation/LCD.md
 
-# LCD Display
-The code will support a i2c 16x2 LCD display, how to wire it up is at the top of the code. The display is split into four areas: top left quadrant is for status messages, top right is for a count of callers so far, bottom left is what was dialled with a little ^ pointer showing you where the Pulsing has got to and bottom right shows the current state machine state.  The backlight will come on for 60 seconds after the last change, so makes it very easy to see activity from a distance.
 
-# Improvements
-- a prefix insert switch - so if Sam wants to divert everyone to a single extension, he can just have a switch to pull low an input, which should be safe to wire as a group across the set (assuming the same potential ground). This could be used when doing maintenance or making announcements etc.
-- hard time out. this would enforce a maximum session time after which it won't do number pulses anymore - any way to chuck someone off the incoming line? hmm...
+<!----------------------------------[ Badges ]--------------------------------->
+
+[Badge License]: https://img.shields.io/badge/License-Unknown-808080.svg?style=for-the-badge
+
+
+<!---------------------------------[ Buttons ]--------------------------------->
+
+[Button Improvements]: https://img.shields.io/badge/Improvements-428813?style=for-the-badge&logoColor=white&logo=AddThis
+[Button State]: https://img.shields.io/badge/State_Machines-006272?style=for-the-badge&logoColor=white&logo=GraphQL
+[Button Async]: https://img.shields.io/badge/Async_Problems-FF4747?style=for-the-badge&logoColor=white&logo=Hackaday
+[Button LCD]: https://img.shields.io/badge/LCD-2490D7?style=for-the-badge&logoColor=white&logo=Microsoft
