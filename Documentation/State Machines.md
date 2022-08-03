@@ -9,6 +9,7 @@ Each state runs a bit of code and <br>
 afterwards *jumps* to another state.
 
 <br>
+<br>
 
 ## Usage 
 
@@ -19,6 +20,7 @@ generate some outputs or do both at the same time.
 *While it is possible to have multiple pieces / states in* <br>
 *play at once, you need to know what you are doing.*
 
+<br>
 <br>
 
 ## Comparison

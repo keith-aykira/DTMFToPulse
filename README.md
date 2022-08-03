@@ -4,17 +4,15 @@
 ***DTMF Logic   🠖   Pulses***
 
 <br>
+<br>
+<br>
 
 <div align = center>
 
----
-
-[<kbd> <br> LCD <br> </kbd>][LCD]   
-[<kbd> <br> State <br> Machines <br> </kbd>][State Machines]   
-[<kbd> <br> Mutliple <br> Async Problem <br> </kbd>][Async Problem]   
-[<kbd> <br> Improvements <br> </kbd>][Improvements]
-
----
+[![Button LCD]][LCD]   
+[![Button State]][State]   
+[![Button Async]][Async]   
+[![Button Improvements]][Improvements]
 
 <br>
 <br>
@@ -60,10 +58,21 @@ preprocessor definitions that allow you to:
 
 <!----------------------------------------------------------------------------->
 
-[State Machines]: Documentation/State%20Machines.md
-[Async Problem]: Documentation/Async%20Problem.md
 [Improvements]: Documentation/Improvements.md
+[License]: #
+[State]: Documentation/State%20Machines.md
+[Async]: Documentation/Async%20Problem.md
 [LCD]: Documentation/LCD.md
 
+
+<!----------------------------------[ Badges ]--------------------------------->
+
 [Badge License]: https://img.shields.io/badge/License-Unknown-808080.svg?style=for-the-badge
-[License]: #
+
+
+<!---------------------------------[ Buttons ]--------------------------------->
+
+[Button Improvements]: https://img.shields.io/badge/Improvements-428813?style=for-the-badge&logoColor=white&logo=AddThis
+[Button State]: https://img.shields.io/badge/State_Machines-006272?style=for-the-badge&logoColor=white&logo=GraphQL
+[Button Async]: https://img.shields.io/badge/Async_Problems-FF4747?style=for-the-badge&logoColor=white&logo=Hackaday
+[Button LCD]: https://img.shields.io/badge/LCD-2490D7?style=for-the-badge&logoColor=white&logo=Microsoft
